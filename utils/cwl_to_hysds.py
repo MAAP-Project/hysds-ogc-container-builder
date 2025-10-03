@@ -1,5 +1,6 @@
 import json
 import os
+import copy
 from pathlib import Path
 from typing import List
 from cwl_utils.parser import load_document_by_uri, cwl_v1_2
@@ -29,7 +30,32 @@ def update_job_spec_command(job_spec_path, remote_cwl_uri):
         command = f"{command} {remote_cwl_uri}"
         job_spec['command'] = command
 
-    json.dump(job_spec, open(job_spec_path, 'r'), indent=2)
+    with open(job_spec_path, 'w') as f:
+        json.dump(job_spec, f, indent=2)
+
+
+def is_optional_type(type_):
+    """
+    Determines if a CWL type is optional.
+    Optional types are represented as 'type?' or ['null', 'type'] in CWL.
+    """
+    if isinstance(type_, str):
+        return type_.endswith('?')
+    elif isinstance(type_, list):
+        return 'null' in type_
+    return False
+
+
+def get_base_type(type_):
+    """
+    Extracts the base type from an optional type.
+    'string?' -> 'string', ['null', 'string'] -> 'string'
+    """
+    if isinstance(type_, str):
+        return type_.rstrip('?')
+    elif isinstance(type_, list):
+        return [t for t in type_ if t != 'null'][0] if len([t for t in type_ if t != 'null']) > 0 else None
+    return type_
 
 
 def parse_cwl(cwl_path):
@@ -47,7 +73,22 @@ def parse_cwl(cwl_path):
 def map_input_types(inp: cwl_v1_2.WorkflowInputParameter):
     input_type = inp.type_
     result = {}
-    result.update({"default": inp.default if inp.default else ""})
+
+    # Stringify default values for HySDS v3 compatibility
+    # Only add default field if a default value exists
+    if inp.default is not None:
+        # Handle complex defaults (like Directory objects)
+        if isinstance(inp.default, dict):
+            result.update({"default": json.dumps(inp.default)})
+        else:
+            result.update({"default": str(inp.default)})
+
+    # Check if type is optional
+    if is_optional_type(input_type):
+        result.update({"optional": True})
+        input_type = get_base_type(input_type)
+
+    # Map the base type
     if isinstance(input_type, str):
         if input_type in defaults.IO_INPUT_MAP:
             result.update({"type": defaults.IO_INPUT_MAP[input_type]})
@@ -57,6 +98,8 @@ def map_input_types(inp: cwl_v1_2.WorkflowInputParameter):
         for i in input_type:
             if i in defaults.IO_INPUT_MAP:
                 result.update({"type": defaults.IO_INPUT_MAP[i]})
+                break
+
     return result
 
 
@@ -71,17 +114,22 @@ def parse_workflow_inputs(workflow_inputs: List[cwl_v1_2.WorkflowInputParameter]
         input_id = get_id_from_uri(inp.id)
         param = {
             "name": input_id,
-            "description": inp.doc,
             "from": "submitter",
-            "placeholder": inp.label
         }
+        # Use doc for placeholder (hint text) and label for description if available
+        if inp.label:
+            param["placeholder"] = inp.label
+        if inp.doc:
+            param["description"] = inp.doc
+
         param.update(map_input_types(inp))
         params.append(param)
     return params
 
 
 def generate_hysds_io(workflow: cwl_v1_2.Workflow):
-    hysds_io = defaults.HYSDS_IO
+    # Deep copy to avoid modifying the shared default dict
+    hysds_io = copy.deepcopy(defaults.HYSDS_IO)
     workflow_id = get_id_from_uri(workflow.id)
     hysds_io["label"] = workflow.label
     hysds_io["params"] = parse_workflow_inputs(workflow.inputs)
@@ -90,16 +138,30 @@ def generate_hysds_io(workflow: cwl_v1_2.Workflow):
 
 
 def get_input_destination(inp: cwl_v1_2.CommandInputParameter):
+    """
+    Determines the destination for a command-line parameter.
+    - positional: if inputBinding has a position (for command-line arguments)
+    - localize: if type is File or Directory (for data staging)
+    - context: everything else (metadata)
+    """
+    # Check if this is a positional argument (has inputBinding with position)
+    if hasattr(inp, 'inputBinding') and inp.inputBinding and hasattr(inp.inputBinding, 'position'):
+        return {"destination": "positional"}
+
+    # Check type for localize (File/Directory)
     input_type = inp.type_
-    if isinstance(input_type, str):
-        if input_type in defaults.JOB_SPEC_INPUT_MAP:
-            return {"destination": defaults.JOB_SPEC_INPUT_MAP[input_type]}
-    elif isinstance(input_type, cwl_v1_2.InputArraySchema):
+    base_type = get_base_type(input_type) if is_optional_type(input_type) else input_type
+
+    if isinstance(base_type, str):
+        if base_type in defaults.JOB_SPEC_INPUT_MAP:
+            return {"destination": defaults.JOB_SPEC_INPUT_MAP[base_type]}
+    elif isinstance(base_type, cwl_v1_2.InputArraySchema):
         return {"destination": "context"}
-    elif isinstance(input_type, list):
-        for i in input_type:
+    elif isinstance(base_type, list):
+        for i in base_type:
             if i in defaults.JOB_SPEC_INPUT_MAP:
                 return {"destination": defaults.JOB_SPEC_INPUT_MAP[i]}
+
     return {"destination": "context"}
 
 def parse_commandline_inputs(commandline_inputs: List[cwl_v1_2.CommandInputParameter]):
@@ -124,17 +186,46 @@ def parse_docker_requirement(docker_requirement: cwl_v1_2.DockerRequirement, doc
 
 
 def parse_requirements(requirements: List[cwl_v1_2.ResourceRequirement | cwl_v1_2.DockerRequirement], docker_uri):
+    """
+    Parses CWL requirements and extracts resource specifications.
+
+    Note: CWL ResourceRequirement also includes ramMin, ramMax, coresMin, coresMax
+    but HySDS doesn't have direct fields for these. They could be used to determine
+    recommended queues but are currently just documented here for reference.
+    """
     result = dict()
     for req in requirements:
         if type(req) == cwl_v1_2.DockerRequirement:
             result["dependency_images"] = [parse_docker_requirement(req, docker_uri)]
         elif type(req) == cwl_v1_2.ResourceRequirement:
-            result["disk_usage"] = f"{req.outdirMax}GB"
+            # Extract disk usage (outdirMax in CWL is in GB)
+            if hasattr(req, 'outdirMax') and req.outdirMax:
+                try:
+                    disk_gb = int(req.outdirMax)
+                    result["disk_usage"] = f"{disk_gb}GB"
+                except (ValueError, TypeError):
+                    print(f"Warning: Invalid outdirMax value '{req.outdirMax}', using default 10GB")
+                    result["disk_usage"] = "10GB"
+            else:
+                print("Warning: No outdirMax specified in ResourceRequirement, using default 10GB")
+                result["disk_usage"] = "10GB"
+
+            # Document CPU/RAM for reference (not used by HySDS directly)
+            if hasattr(req, 'ramMin') and req.ramMin:
+                print(f"Info: CWL specifies ramMin={req.ramMin} (not directly mapped to HySDS)")
+            if hasattr(req, 'coresMin') and req.coresMin:
+                print(f"Info: CWL specifies coresMin={req.coresMin} (not directly mapped to HySDS)")
+
+    # Set default disk_usage if not found in requirements
+    if "disk_usage" not in result:
+        result["disk_usage"] = "10GB"
+
     return result
 
 
 def generate_job_spec(commandline_tool: cwl_v1_2.CommandLineTool, docker_uri):
-    job_spec = defaults.JOB_SPEC
+    # Deep copy to avoid modifying the shared default dict
+    job_spec = copy.deepcopy(defaults.JOB_SPEC)
     job_spec["params"] = parse_commandline_inputs(commandline_tool.inputs)
     job_spec.update(parse_requirements(commandline_tool.requirements, docker_uri))
 

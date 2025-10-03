@@ -8,7 +8,12 @@ HYSDS_IO = {
 IO_INPUT_MAP = {
     "Directory": "text",
     "File": "text",
-    "string": "text"
+    "string": "text",
+    "int": "number",
+    "long": "number",
+    "float": "number",
+    "double": "number",
+    "boolean": "boolean",
 }
 
 JOB_SPEC_INPUT_MAP = {
