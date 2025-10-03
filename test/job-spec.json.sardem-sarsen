@@ -1,0 +1,37 @@
+{
+  "imported_worker_files": {
+    "$HOME/verdi/etc/maap-dps.env": "/maap-dps.env",
+    "/tmp": [
+      "/tmp",
+      "rw"
+    ]
+  },
+  "soft_time_limit": 86400,
+  "time_limit": 86400,
+  "command": "/app/dps_wrapper.sh",
+  "post": [
+    "hysds.triage.triage"
+  ],
+  "params": [
+    {
+      "name": "bbox",
+      "destination": "positional"
+    },
+    {
+      "name": "stac_catalog_folder",
+      "destination": "positional"
+    },
+    {
+      "name": "stac_asset_name",
+      "destination": "positional"
+    }
+  ],
+  "dependency_images": [
+    {
+      "container_image_name": "maap-project/sardem-sarsen:mlucas_nasa-ogc",
+      "container_mappings": {},
+      "container_image_url": "s3://test-bucket/container.tar.gz"
+    }
+  ],
+  "disk_usage": "20GB"
+}

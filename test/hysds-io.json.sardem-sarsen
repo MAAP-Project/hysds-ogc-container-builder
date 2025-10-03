@@ -1,0 +1,34 @@
+{
+  "component": "tosca",
+  "submission_type": "individual",
+  "enable_dedup": false,
+  "action-type": "both",
+  "label": "sardem-sarsen",
+  "params": [
+    {
+      "name": "bbox",
+      "from": "submitter",
+      "placeholder": "bounding box",
+      "description": "Bounding box as 'LEFT BOTTOM RIGHT TOP'",
+      "default": "-118.06817 34.22169 -118.05801 34.22822",
+      "type": "text"
+    },
+    {
+      "name": "stac_catalog_folder",
+      "from": "submitter",
+      "placeholder": "catalog folder",
+      "description": "STAC catalog folder",
+      "type": "text"
+    },
+    {
+      "name": "stac_asset_name",
+      "from": "submitter",
+      "placeholder": "asset name",
+      "description": "STAC asset name",
+      "default": "edu/GRD_HD/SA/S1A_IW_GRDH_1SDV_20250330T171421_20250330T171446_058537_073E4F_985B",
+      "optional": true,
+      "type": "text"
+    }
+  ],
+  "description": "This application is designed to process Synthetic Aperture Radar (SAR) data from Sentinel-1 GRD (Ground Range Detected) products using a Digital Elevation Model (DEM) obtained from Copernicus."
+}
