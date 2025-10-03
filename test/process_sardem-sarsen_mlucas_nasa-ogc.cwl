@@ -16,9 +16,6 @@ $graph:
       doc: STAC catalog folder
       label: catalog folder
       type: Directory
-      default:
-        class: Directory
-        path: catalog_dir
     stac_asset_name:
       doc: STAC asset name
       label: asset name
@@ -61,9 +58,6 @@ $graph:
       inputBinding:
         position: 2
         prefix: --stac_catalog_folder
-      default:
-        class: Directory
-        path: catalog_dir
     stac_asset_name:
       type: string?
       inputBinding:
