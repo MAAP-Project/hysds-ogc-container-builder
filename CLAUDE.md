@@ -12,8 +12,8 @@ The conversion process in [utils/cwl_to_hysds.py](utils/cwl_to_hysds.py) follows
 
 1. **CWL Parsing**: Uses `cwl_utils` to parse CWL v1.2 files containing both a `Workflow` and `CommandLineTool`
 2. **Two-Spec Generation**: Produces two JSON files from the CWL input:
-   - `hysds-io.json.<workflow_id>`: User-facing submission interface spec (workflow-level inputs)
-   - `job-spec.json.<workflow_id>`: Execution spec for the HySDS worker (command-line tool parameters and resource requirements)
+   - `hysds-io.json.<algorithm_name>`: User-facing submission interface spec (workflow-level inputs)
+   - `job-spec.json.<algorithm_name>`: Execution spec for the HySDS worker (command-line tool parameters and resource requirements)
 
 ### Type Mapping Strategy
 
@@ -40,14 +40,20 @@ Resource specifications from CWL's `ResourceRequirement` are mapped to HySDS for
 ## Running the Converter
 
 ```bash
-python utils/cwl_to_hysds.py file://path/to/your.cwl <URI of the container tarball>
+.venv/bin/python -m utils.cwl_to_hysds <path/to/your.cwl> <algorithm_name> [--docker-uri <URI>]
 ```
 
 **Arguments**:
-- First arg: CWL file URI (must use `file://` scheme)
-- Second arg: URI where the Docker container tarball is stored (typically an S3 URI)
+- `<path/to/your.cwl>`: Path to the CWL file (relative or absolute path, no `file://` prefix needed)
+- `<algorithm_name>`: Algorithm/process name to use in output filenames
+- `--docker-uri`: (Optional) URI where the Docker container tarball is stored (typically an S3 URI)
 
-**Output**: Generates `hysds-io.json.<workflow_id>` and `job-spec.json.<workflow_id>` in the current directory.
+**Output**: Generates `hysds-io.json.<algorithm_name>` and `job-spec.json.<algorithm_name>` in the current directory.
+
+**Example**:
+```bash
+.venv/bin/python -m utils.cwl_to_hysds test/process_sardem-sarsen_mlucas_nasa-ogc.cwl sardem-sarsen --docker-uri s3://bucket/container.tar.gz
+```
 
 ## HySDS Integration Points
 
