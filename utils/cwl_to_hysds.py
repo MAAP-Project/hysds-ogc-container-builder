@@ -180,7 +180,7 @@ def parse_docker_requirement(docker_requirement: cwl_v1_2.DockerRequirement, doc
     req["container_mappings"] = dict()
     if docker_requirement.dockerImport:
         req["container_image_url"] = docker_requirement.dockerImport
-    else:
+    elif docker_uri and docker_uri != "":
         req["container_image_url"] = docker_uri
     return req
 
@@ -237,21 +237,36 @@ def write_json(data, path):
         json.dump(data, f, indent=2)
 
 
-def main(cwl_file_uri, docker_uri):
+def main(cwl_file_uri, docker_uri, algorithm_name):
     workflow, command_line_tool = parse_cwl(cwl_file_uri)
     io_spec, workflow_id = generate_hysds_io(workflow)
     job_spec = generate_job_spec(command_line_tool, docker_uri)
 
     out_dir = os.getcwd()
-    write_json(io_spec, os.path.join(out_dir, f'hysds-io.json.{workflow_id}'))
-    write_json(job_spec, os.path.join(out_dir, f'job-spec.json.{workflow_id}'))
+    write_json(io_spec, os.path.join(out_dir, f'hysds-io.json.{algorithm_name}'))
+    write_json(job_spec, os.path.join(out_dir, f'job-spec.json.{algorithm_name}'))
     print(f"Generated hysds-io.json and job-spec.json in {out_dir}")
 
 
 if __name__ == "__main__":
-    import sys
+    import argparse
 
-    if len(sys.argv) != 3:
-        print("Usage: python cwl_to_hysds.py file://path/to/your.cwl <URI of the container tarball>")
-    else:
-        main(sys.argv[1], sys.argv[2])
+    parser = argparse.ArgumentParser(
+        description="Convert CWL specification to HySDS job specifications"
+    )
+    parser.add_argument(
+        "cwl_file",
+        help="Path to CWL file (must use file:// URI scheme)"
+    )
+    parser.add_argument(
+        "algorithm_name",
+        help="Process name to use in HySDS output filenames"
+    )
+    parser.add_argument(
+        "--docker-uri",
+        default="",
+        help="URI of the container tarball (optional)"
+    )
+
+    args = parser.parse_args()
+    main(args.cwl_file, args.docker_uri, args.algorithm_name)
