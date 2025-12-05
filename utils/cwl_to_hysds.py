@@ -13,8 +13,9 @@ def strip_registry(image_url: str) -> str:
     """
     Removes the registry part from a Docker image URL.
     E.g., 'docker.io/library/ubuntu' -> 'library/ubuntu'
+    'localhost:5050/library/ubuntu:latest' -> 'library/ubuntu:latest'
     """
-    match = re.sub(r'^([^/:]+[.][^/]+[:0-9]*)/', '', image_url)
+    match = re.sub(r'^(?:[^/]+\.[^/]+(?::\d+)?|localhost:\d+)/', '', image_url)
     return match
 
 
