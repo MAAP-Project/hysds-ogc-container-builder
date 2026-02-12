@@ -23,9 +23,16 @@ JOB_SPEC_INPUT_MAP = {
 
 JOB_SPEC = {
     "imported_worker_files": {
-        "/data/work/etc/maap-dps.env": "/maap-dps.env",
-        "/tmp": ["/tmp", "rw"]
-    },
+    "${DATA_DIR}/work/etc/maap-dps.env": "/maap-dps.env",
+    "${DATA_DIR}/work/etc/.aws": [
+      "/root/.aws",
+      "ro"
+    ],
+    "/tmp": [
+      "/tmp",
+      "rw"
+    ]
+  },
     "soft_time_limit": 86400,
     "time_limit": 86400,
     "command": "/app/dps_wrapper.sh",
