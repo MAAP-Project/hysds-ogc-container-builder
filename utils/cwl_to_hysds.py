@@ -71,23 +71,42 @@ def parse_cwl(cwl_path):
     return workflow, command_line_tool
 
 
+def cast_default_value(default, base_type):
+    """Cast a CWL default value to its native Python type for hysds-io storage."""
+    if isinstance(default, dict):
+        return json.dumps(default)
+    if base_type in ("int", "long"):
+        try:
+            return int(default)
+        except (ValueError, TypeError):
+            return default
+    if base_type in ("float", "double"):
+        try:
+            return float(default)
+        except (ValueError, TypeError):
+            return default
+    if base_type == "boolean":
+        if isinstance(default, bool):
+            return default
+        if isinstance(default, str):
+            return default.lower() == "true"
+        return bool(default)
+    return str(default)
+
+
 def map_input_types(inp: cwl_v1_2.WorkflowInputParameter):
     input_type = inp.type_
     result = {}
 
-    # Stringify default values for HySDS v3 compatibility
-    # Only add default field if a default value exists
-    if inp.default is not None:
-        # Handle complex defaults (like Directory objects)
-        if isinstance(inp.default, dict):
-            result.update({"default": json.dumps(inp.default)})
-        else:
-            result.update({"default": str(inp.default)})
-
-    # Check if type is optional
+    # Resolve optional type first so we know the base type for default casting
     if is_optional_type(input_type):
         result.update({"optional": True})
         input_type = get_base_type(input_type)
+
+    # Cast default to the correct native type based on resolved input type
+    if inp.default is not None:
+        base_type = input_type if isinstance(input_type, str) else None
+        result.update({"default": cast_default_value(inp.default, base_type)})
 
     # Map the base type
     if isinstance(input_type, str):
