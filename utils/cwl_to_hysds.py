@@ -141,15 +141,11 @@ def generate_hysds_io(workflow: cwl_v1_2.Workflow):
 def get_input_destination(inp: cwl_v1_2.CommandInputParameter):
     """
     Determines the destination for a command-line parameter.
-    - positional: if inputBinding has a position (for command-line arguments)
-    - localize: if type is File or Directory (for data staging)
+    - localize: if type is File or Directory (data staging, takes priority)
+    - positional: if inputBinding has an explicit position and type is not File/Directory
     - context: everything else (metadata)
     """
-    # Check if this is a positional argument (has inputBinding with position)
-    if hasattr(inp, 'inputBinding') and inp.inputBinding and hasattr(inp.inputBinding, 'position'):
-        return {"destination": "positional"}
-
-    # Check type for localize (File/Directory)
+    # Type takes priority: File/Directory must always be localized for data staging
     input_type = inp.type_
     base_type = get_base_type(input_type) if is_optional_type(input_type) else input_type
 
@@ -162,6 +158,10 @@ def get_input_destination(inp: cwl_v1_2.CommandInputParameter):
         for i in base_type:
             if i in defaults.JOB_SPEC_INPUT_MAP:
                 return {"destination": defaults.JOB_SPEC_INPUT_MAP[i]}
+
+    # Positional check: only for non-File/Directory types with an explicit position
+    if hasattr(inp, 'inputBinding') and inp.inputBinding and hasattr(inp.inputBinding, 'position') and inp.inputBinding.position is not None:
+        return {"destination": "positional"}
 
     return {"destination": "context"}
 
