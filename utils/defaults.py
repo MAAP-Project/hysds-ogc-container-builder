@@ -24,10 +24,6 @@ JOB_SPEC_INPUT_MAP = {
 JOB_SPEC = {
     "imported_worker_files": {
     "${DATA_DIR}/work/etc/maap-dps.env": "/maap-dps.env",
-    "${DATA_DIR}/work/etc/.aws": [
-      "/root/.aws",
-      "ro"
-    ],
     "/tmp": [
       "/tmp",
       "rw"
