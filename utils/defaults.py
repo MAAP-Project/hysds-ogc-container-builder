@@ -23,7 +23,7 @@ JOB_SPEC_INPUT_MAP = {
 
 JOB_SPEC = {
     "imported_worker_files": {
-    "${DATA_DIR}/work/etc/maap-dps.env": "/maap-dps.env",
+    "${HYSDS_ROOT_WORK_DIR}/etc/maap-dps.env": "/maap-dps.env",
     "/tmp": [
       "/tmp",
       "rw"
