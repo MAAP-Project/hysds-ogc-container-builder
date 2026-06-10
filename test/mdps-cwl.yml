@@ -1,0 +1,155 @@
+#!/usr/bin/env cwl-runner
+$graph:
+- class: Workflow
+  doc: Example of using mdps-app-generator to produce an OGC Application pacakge
+  id: mdps-example-application
+  inputs:
+    example_argument_bool:
+      default: true
+      doc: ''
+      label: argument
+      type: boolean
+    example_argument_empty:
+      doc: Allow a null value or a string
+      label: argument
+      type: string?
+    example_argument_float:
+      default: 1.0
+      doc: ''
+      label: argument
+      type: float
+    example_argument_int:
+      default: 1
+      doc: ''
+      label: argument
+      type: int
+    example_argument_string:
+      default: string
+      doc: ''
+      label: argument
+      type: string
+    input_stac_catalog_dir:
+      doc: ''
+      label: stage-in
+      type: Directory
+    output_collection:
+      default: mdps-example-application___1
+      doc: ''
+      label: argument
+      type: string
+    summary_table_filename:
+      default: summary_table.txt
+      doc: ''
+      label: argument
+      type: string
+  label: Example MDPS OGC Application
+  outputs:
+    out:
+      outputSource: process/outputs_result
+      type: Directory
+  steps:
+    process:
+      in:
+        example_argument_bool: example_argument_bool
+        example_argument_empty: example_argument_empty
+        example_argument_float: example_argument_float
+        example_argument_int: example_argument_int
+        example_argument_string: example_argument_string
+        input_stac_catalog_dir: input_stac_catalog_dir
+        output_collection: output_collection
+        summary_table_filename: summary_table_filename
+      out:
+      - outputs_result
+      run: '#main'
+- arguments:
+  - -p
+  - input_stac_catalog_dir
+  - $(inputs.input_stac_catalog_dir.path)
+  - -p
+  - output_stac_catalog_dir
+  - $(runtime.outdir)
+  baseCommand:
+  - papermill
+  - /home/jovyan/process.ipynb
+  - output_nb.ipynb
+  - -f
+  - /tmp/inputs.json
+  - --log-output
+  - -k
+  - python3
+  class: CommandLineTool
+  id: main
+  inputs:
+    example_argument_bool:
+      default: true
+      doc: ''
+      label: argument
+      type: boolean
+    example_argument_empty:
+      default: null
+      doc: Allow a null value or a string
+      label: argument
+      type: string
+    example_argument_float:
+      default: 1.0
+      doc: ''
+      label: argument
+      type: float
+    example_argument_int:
+      default: 1
+      doc: ''
+      label: argument
+      type: int
+    example_argument_string:
+      default: string
+      doc: ''
+      label: argument
+      type: string
+    input_stac_catalog_dir:
+      doc: ''
+      label: stage-in
+      type: Directory
+    output_collection:
+      default: mdps-example-application___1
+      doc: ''
+      label: argument
+      type: string
+    summary_table_filename:
+      default: summary_table.txt
+      doc: ''
+      label: argument
+      type: string
+  outputs:
+    outputs_result:
+      outputBinding:
+        glob: $(runtime.outdir)
+      type: Directory
+  requirements:
+    DockerRequirement:
+      dockerPull: localhost:5050/unity-sds/mdps-example-application:471a440f
+    InitialWorkDirRequirement:
+      listing:
+      - entry: $(inputs)
+        entryname: /tmp/inputs.json
+    InplaceUpdateRequirement:
+      inplaceUpdate: true
+    NetworkAccess:
+      networkAccess: true
+    ShellCommandRequirement: {}
+$namespaces:
+  s: https://schema.org/
+$schemas:
+- https://raw.githubusercontent.com/schemaorg/schemaorg/refs/heads/main/data/releases/9.0/schemaorg-current-http.rdf
+cwlVersion: v1.2
+s:author:
+- class: s:Person
+  s:name: James McDuffie
+s:citation: https://github.com/unity-sds/mdps-example-application
+s:codeRepository: https://github.com/unity-sds/mdps-example-application
+s:commitHash: 471a440f
+s:dateCreated: 2026-02-24
+s:keywords: mdps, ogc, example
+s:license: Apache Version 2
+s:releaseNotes: ''
+s:softwareVersion: 1.1.0
+s:version: 1.1.0
