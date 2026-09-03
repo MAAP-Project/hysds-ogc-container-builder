@@ -73,8 +73,13 @@ def parse_cwl(cwl_path):
 
 def cast_default_value(default, base_type):
     """Cast a CWL default value to its native Python type for hysds-io storage."""
+    if base_type in ("File", "Directory"):
+        path = getattr(default, "path", None) or getattr(default, "location", None)
+        return path if path is not None else str(default)
     if isinstance(default, dict):
         return json.dumps(default)
+    if hasattr(default, "save"):
+        return json.dumps(default.save())
     if base_type in ("int", "long"):
         try:
             return int(default)
