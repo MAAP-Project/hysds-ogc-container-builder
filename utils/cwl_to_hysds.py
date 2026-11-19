@@ -147,12 +147,26 @@ def parse_workflow_inputs(workflow_inputs: List[cwl_v1_2.WorkflowInputParameter]
     return params
 
 
+def add_output_target_params(params, extra_params):
+    """Append the MAAP output target params, unless the CWL already declares one
+    with the same name (the algorithm's own input wins and is left untouched)."""
+    existing = {p["name"] for p in params}
+    for extra in extra_params:
+        if extra["name"] in existing:
+            print(f"Warning: CWL input '{extra['name']}' shadows the MAAP output target param; "
+                  "custom output buckets will not work for this algorithm")
+            continue
+        params.append(copy.deepcopy(extra))
+    return params
+
+
 def generate_hysds_io(workflow: cwl_v1_2.Workflow):
     # Deep copy to avoid modifying the shared default dict
     hysds_io = copy.deepcopy(defaults.HYSDS_IO)
     workflow_id = get_id_from_uri(workflow.id)
     hysds_io["label"] = workflow.label
-    hysds_io["params"] = parse_workflow_inputs(workflow.inputs)
+    hysds_io["params"] = add_output_target_params(
+        parse_workflow_inputs(workflow.inputs), defaults.OUTPUT_TARGET_IO_PARAMS)
     hysds_io["description"] = workflow.doc
     return hysds_io, workflow_id
 
@@ -246,7 +260,8 @@ def parse_requirements(requirements: List[cwl_v1_2.ResourceRequirement | cwl_v1_
 def generate_job_spec(commandline_tool: cwl_v1_2.CommandLineTool, docker_uri):
     # Deep copy to avoid modifying the shared default dict
     job_spec = copy.deepcopy(defaults.JOB_SPEC)
-    job_spec["params"] = parse_commandline_inputs(commandline_tool.inputs)
+    job_spec["params"] = add_output_target_params(
+        parse_commandline_inputs(commandline_tool.inputs), defaults.OUTPUT_TARGET_JOB_SPEC_PARAMS)
     job_spec.update(parse_requirements(commandline_tool.requirements, docker_uri))
 
     return job_spec
